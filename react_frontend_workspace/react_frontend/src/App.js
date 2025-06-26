@@ -42,10 +42,15 @@ function AuthProvider({ children }) {
     () => JSON.parse(localStorage.getItem("user")) || null
   );
 
-  const login = (data) => {
+  // PUBLIC_INTERFACE
+  const login = (data, navigate = null) => {
     localStorage.setItem("token", data.access_token);
     localStorage.setItem("user", JSON.stringify(data.user));
     setUser(data.user);
+    // If navigation is provided (new session), redirect after login
+    if (navigate) {
+      navigate("/dashboard", { replace: true });
+    }
   };
   const logout = () => {
     localStorage.removeItem("token");
@@ -187,8 +192,8 @@ function LoginPage() {
         },
         false
       );
-      login(data); // stores token and user
-      navigate("/dashboard");
+      // Use login with navigation so redirect happens after user state is set
+      login(data, navigate); // stores token and user, does redirect
     } catch (err) {
       setError(formatError(err) || "Login failed.");
     }

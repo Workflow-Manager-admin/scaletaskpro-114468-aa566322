@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "../App.css";
 import { apiRequest } from "../utils/api";
+import { useSuccessMessage } from "../utils/SuccessMessageContext";
 
 // PUBLIC_INTERFACE
 export default function TaskDetailPage() {
@@ -16,6 +17,7 @@ export default function TaskDetailPage() {
   const [input, setInput] = useState({});
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const { showSuccess } = useSuccessMessage();
 
   useEffect(() => {
     async function fetchTask() {
@@ -47,6 +49,7 @@ export default function TaskDetailPage() {
       });
       setEditing(false);
       setTask(input);
+      showSuccess("Task updated.");
     } catch (e) {
       setError(e?.detail || "Update failed");
     }
@@ -56,6 +59,7 @@ export default function TaskDetailPage() {
     if (window.confirm("Delete this task?")) {
       try {
         await apiRequest(`/tasks/${id}`, { method: "DELETE" });
+        showSuccess("Task deleted.");
         navigate("/tasks");
       } catch (e) {
         setError(e?.detail || "Delete failed");

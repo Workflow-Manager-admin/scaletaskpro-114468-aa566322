@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import "../App.css";
 import { apiRequest } from "../utils/api";
+import { useSuccessMessage } from "../utils/SuccessMessageContext";
 
 // PUBLIC_INTERFACE
 export default function TeamDetailPage() {

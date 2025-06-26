@@ -14,6 +14,7 @@ import ProjectDetailPage from "./pages/ProjectDetailPage";
 import TeamDetailPage from "./pages/TeamDetailPage";
 import HealthPage from "./pages/HealthPage";
 import { apiRequest } from "./utils/api";
+import { SuccessMessageProvider, SuccessMessageBanner, useSuccessMessage } from "./utils/SuccessMessageContext";
 
 /**
  * --- Auth context for managing user session and protected routes ---
@@ -255,6 +256,7 @@ function LoginPage() {
   const { login, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showSuccess } = useSuccessMessage();
 
   // Utility for session expired message
   useEffect(() => {
@@ -313,6 +315,7 @@ function LoginPage() {
       );
       // login(data, navigate) will set session and redirect
       login(data, navigate);
+      showSuccess("Login successful. Welcome!");
     } catch (err) {
       setError(formatError(err) || "Login failed.");
     }
@@ -371,6 +374,7 @@ function RegisterPage() {
   const [error, setError] = useState("");
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { showSuccess } = useSuccessMessage();
 
   function formatError(err) {
     if (!err) return "";
@@ -417,6 +421,7 @@ function RegisterPage() {
         },
         false
       );
+      showSuccess("Registration successful! Logging you in...");
       // On success, auto-login using email/password:
       const data = await apiRequest(
         "/auth/login",
@@ -633,6 +638,7 @@ function ProjectsPage() {
   const [editProject, setEditProject] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const { showSuccess } = useSuccessMessage();
 
   useEffect(() => {
     fetchProjects();
@@ -658,11 +664,13 @@ function ProjectsPage() {
           method: "PUT",
           body: JSON.stringify(project),
         });
+        showSuccess("Project updated.");
       } else {
         await apiRequest("/projects", {
           method: "POST",
           body: JSON.stringify(project),
         });
+        showSuccess("Project created.");
       }
       setShowModal(false);
       setEditProject(null);
@@ -680,6 +688,7 @@ function ProjectsPage() {
       try {
         await apiRequest(`/projects/${proj.id}`, { method: "DELETE" });
         fetchProjects();
+        showSuccess("Project deleted.");
       } catch (e) {
         setErr(e?.detail || "Delete failed.");
       }
@@ -776,6 +785,7 @@ function TeamsPage() {
   const [editTeam, setEditTeam] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const { showSuccess } = useSuccessMessage();
 
   useEffect(() => {
     fetchTeams();
@@ -801,11 +811,13 @@ function TeamsPage() {
           method: "PUT",
           body: JSON.stringify(team),
         });
+        showSuccess("Team updated.");
       } else {
         await apiRequest("/teams", {
           method: "POST",
           body: JSON.stringify(team),
         });
+        showSuccess("Team created.");
       }
       setShowModal(false);
       setEditTeam(null);
@@ -824,6 +836,7 @@ function TeamsPage() {
       try {
         await apiRequest(`/teams/${team.id}`, { method: "DELETE" });
         fetchTeams();
+        showSuccess("Team deleted.");
       } catch (e) {
         setErr(e?.detail || "Delete failed.");
       }
@@ -920,6 +933,7 @@ function TasksPage() {
   const [editTask, setEditTask] = useState(null);
   const [err, setErr] = useState("");
   const [loading, setLoading] = useState(true);
+  const { showSuccess } = useSuccessMessage();
 
   useEffect(() => {
     fetchTasks();
@@ -945,11 +959,13 @@ function TasksPage() {
           method: "PUT",
           body: JSON.stringify(task),
         });
+        showSuccess("Task updated.");
       } else {
         await apiRequest("/tasks", {
           method: "POST",
           body: JSON.stringify(task),
         });
+        showSuccess("Task created.");
       }
       setShowModal(false);
       setEditTask(null);
@@ -968,6 +984,7 @@ function TasksPage() {
       try {
         await apiRequest(`/tasks/${task.id}`, { method: "DELETE" });
         fetchTasks();
+        showSuccess("Task deleted.");
       } catch (e) {
         setErr(e?.detail || "Delete failed.");
       }
@@ -981,6 +998,7 @@ function TasksPage() {
         body: JSON.stringify({ status }),
       });
       fetchTasks();
+      showSuccess("Status updated.");
     } catch (e) {
       setErr(e?.detail || "Status update failed.");
     }
@@ -1108,13 +1126,22 @@ function AppLayout({ children }) {
   const navigate = useNavigate();
   const location = useLocation();
   // When user logs out, redirect to /login
+  const { showSuccess } = useSuccessMessage();
   const handleLogout = () => {
     logout(false);
     navigate("/login", { replace: true });
+    setTimeout(() => showSuccess("Logged out successfully."), 200);
   };
+  // Dismiss success message on route change
+  const { clearSuccess } = useSuccessMessage();
+  React.useEffect(() => {
+    clearSuccess();
+    // eslint-disable-next-line
+  }, [location.pathname]);
   return (
     <div className="app-shell">
       <Navbar onLogout={handleLogout} />
+      <SuccessMessageBanner />
       <div className="app-content">
         <Sidebar
           items={[
@@ -1172,40 +1199,42 @@ function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
-          <AppErrorBoundary>
-            <Routes>
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-              <Route
-                path="/*"
-                element={
-                  <ProtectedRoute>
-                    <AppLayout>
-                      <Routes>
-                        <Route path="/dashboard" element={<DashboardPage />} />
-                        <Route path="/projects" element={<ProjectsPage />} />
-                        <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                        <Route path="/teams" element={<TeamsPage />} />
-                        <Route path="/teams/:id" element={<TeamDetailPage />} />
-                        <Route path="/tasks" element={<TasksPage />} />
-                        <Route path="/tasks/:id" element={<TaskDetailPage />} />
-                        <Route path="/health" element={<HealthPage />} />
-                        <Route path="/" element={<Navigate to="/dashboard" />} />
-                        <Route path="*" element={
-                          <div className="form-error" style={{ margin: "2rem" }}>
-                            <div>Page not found.</div>
-                            <Link className="btn accent" style={{ marginTop: 15 }} to="/dashboard">Dashboard</Link>
-                          </div>
-                        } />
-                      </Routes>
-                    </AppLayout>
-                  </ProtectedRoute>
-                }
-              />
-            </Routes>
-          </AppErrorBoundary>
-        </Router>
+        <SuccessMessageProvider>
+          <Router>
+            <AppErrorBoundary>
+              <Routes>
+                <Route path="/login" element={<LoginPage />} />
+                <Route path="/register" element={<RegisterPage />} />
+                <Route
+                  path="/*"
+                  element={
+                    <ProtectedRoute>
+                      <AppLayout>
+                        <Routes>
+                          <Route path="/dashboard" element={<DashboardPage />} />
+                          <Route path="/projects" element={<ProjectsPage />} />
+                          <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                          <Route path="/teams" element={<TeamsPage />} />
+                          <Route path="/teams/:id" element={<TeamDetailPage />} />
+                          <Route path="/tasks" element={<TasksPage />} />
+                          <Route path="/tasks/:id" element={<TaskDetailPage />} />
+                          <Route path="/health" element={<HealthPage />} />
+                          <Route path="/" element={<Navigate to="/dashboard" />} />
+                          <Route path="*" element={
+                            <div className="form-error" style={{ margin: "2rem" }}>
+                              <div>Page not found.</div>
+                              <Link className="btn accent" style={{ marginTop: 15 }} to="/dashboard">Dashboard</Link>
+                            </div>
+                          } />
+                        </Routes>
+                      </AppLayout>
+                    </ProtectedRoute>
+                  }
+                />
+              </Routes>
+            </AppErrorBoundary>
+          </Router>
+        </SuccessMessageProvider>
       </AuthProvider>
     </ThemeProvider>
   );

@@ -376,3 +376,23 @@ html {
   background: var(--border);
   border-radius: 5px;
 }
+
+/* Success Message Banner */
+.success-message-banner {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 320ms cubic-bezier(.4,1.1,.5,1.0);
+}
+.success-message-banner.visible {
+  opacity: 1;
+  pointer-events: auto;
+}
+@media (max-width: 600px) {
+  .success-message-banner {
+    max-width: 96vw;
+    font-size: 1.01rem;
+    padding: .8rem .6rem;
+    left: 2vw;
+    right: 2vw;
+  }
+}

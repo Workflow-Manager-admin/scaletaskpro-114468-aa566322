@@ -27,3 +27,10 @@ INFO:     100.64.4.167:35420 - "POST /auth/login HTTP/1.1" 422 Unprocessable Ent
 INFO:     100.64.4.167:44794 - "OPTIONS /auth/register HTTP/1.1" 200 OK
 INFO:     100.64.4.167:44806 - "POST /auth/register HTTP/1.1" 200 OK
 INFO:     100.64.4.167:44812 - "POST /auth/login HTTP/1.1" 422 Unprocessable Entity
+INFO:     100.64.4.167:54728 - "POST /auth/register HTTP/1.1" 400 Bad Request
+INFO:     100.64.4.167:54720 - "POST /auth/register HTTP/1.1" 400 Bad Request
+INFO:     100.64.4.167:54474 - "POST /auth/login HTTP/1.1" 422 Unprocessable Entity
+INFO:     100.64.4.167:55470 - "GET /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:55476 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     100.64.4.167:60510 - "GET /auth/register HTTP/1.1" 405 Method Not Allowed
+INFO:     100.64.4.167:60516 - "GET /favicon.ico HTTP/1.1" 404 Not Found

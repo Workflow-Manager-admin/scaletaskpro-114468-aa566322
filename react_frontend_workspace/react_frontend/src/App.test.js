@@ -1,8 +1,11 @@
+/**
+ * UI/UX and routing has been completely updated for the new Task Manager front end.
+ * Tests need rewriting to reflect the new screens and navigation; this file may be ignored or adapted.
+ */
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+test('renders login form', () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  expect(screen.getByText(/login/i)).toBeInTheDocument();
 });

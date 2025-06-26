@@ -16,3 +16,9 @@ Traceback (most recent call last):
 AttributeError: module 'bcrypt' has no attribute '__about__'
 INFO:     100.64.4.167:54056 - "POST /auth/register HTTP/1.1" 200 OK
 INFO:     100.64.4.167:51854 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     100.64.4.167:57456 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:57458 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:57470 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:57462 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:57482 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:57492 - "HEAD /docs HTTP/1.1" 200 OK

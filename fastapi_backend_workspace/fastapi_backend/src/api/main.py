@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.exc import OperationalError
 from .database import engine, get_db
 from .models import Base
-from .routers import auth, teams, projects, tasks
+from .routers import auth, teams, projects, tasks, health
 from sqlalchemy.orm import Session
 
 
@@ -53,3 +53,4 @@ app.include_router(auth.router)
 app.include_router(teams.router)
 app.include_router(projects.router)
 app.include_router(tasks.router)
+app.include_router(health.router)

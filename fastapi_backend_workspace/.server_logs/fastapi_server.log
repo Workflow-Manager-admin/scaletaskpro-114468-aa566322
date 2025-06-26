@@ -1,0 +1,19 @@
+/home/kavia/workspace/code-generation/scaletaskpro-114468-aa566322/fastapi_backend_workspace/fastapi_backend/venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:373: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [2761]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:3001 (Press CTRL+C to quit)
+INFO:     100.64.4.167:54184 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54200 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54206 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54226 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54218 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54242 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54260 - "GET /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54244 - "GET /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54272 - "GET /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54278 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54280 - "GET /openapi.json HTTP/1.1" 200 OK
+INFO:     100.64.4.167:54294 - "GET /openapi.json HTTP/1.1" 200 OK

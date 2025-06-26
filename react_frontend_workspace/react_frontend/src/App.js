@@ -137,12 +137,50 @@ function LoginPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Utility to format validation/server errors as a readable string/JSX
+  function formatError(err) {
+    if (!err) return "";
+    if (typeof err === "string") return err;
+    if (Array.isArray(err)) {
+      // FastAPI validation error: array of objects with loc/msg/type
+      return (
+        <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
+          {err.map((item, i) => (
+            <li key={i}>
+              {item?.msg ? `${item.msg}` : JSON.stringify(item)}
+              {item?.loc ? (
+                <span style={{ color: '#888', marginLeft: 4 }}>
+                  [{item.loc.join(".")}]
+                </span>
+              ) : ""}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    if (typeof err === "object") {
+      if (err.detail) {
+        if (typeof err.detail === "string") return err.detail;
+        if (Array.isArray(err.detail)) return formatError(err.detail);
+        // Might be an object
+        return JSON.stringify(err.detail);
+      }
+      // FastAPI validation error at root level
+      if (err.msg && err.loc) return `${err.msg} (${err.loc.join(",")})`;
+      return JSON.stringify(err);
+    }
+    return String(err);
+  }
+
   // PUBLIC_INTERFACE
   async function handleLogin(e) {
     e.preventDefault();
     setError("");
     try {
       // API: POST /auth/login
+      // FastAPI typical expectation: { "username": ..., "password": ... } (as already coded)
+      // If backend expects application/x-www-form-urlencoded, would need to use URLSearchParams.
+      // Here, we keep JSON, update only if 422 persists after this.
       const data = await apiRequest(
         "/auth/login",
         {
@@ -154,7 +192,7 @@ function LoginPage() {
       login(data); // stores token and user
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.detail || "Login failed.");
+      setError(formatError(err) || "Login failed.");
     }
   }
 
@@ -209,6 +247,38 @@ function RegisterPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
+  // Utility to format errors (reuse from LoginPage)
+  function formatError(err) {
+    if (!err) return "";
+    if (typeof err === "string") return err;
+    if (Array.isArray(err)) {
+      return (
+        <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
+          {err.map((item, i) => (
+            <li key={i}>
+              {item?.msg ? `${item.msg}` : JSON.stringify(item)}
+              {item?.loc ? (
+                <span style={{ color: '#888', marginLeft: 4 }}>
+                  [{item.loc.join(".")}]
+                </span>
+              ) : ""}
+            </li>
+          ))}
+        </ul>
+      );
+    }
+    if (typeof err === "object") {
+      if (err.detail) {
+        if (typeof err.detail === "string") return err.detail;
+        if (Array.isArray(err.detail)) return formatError(err.detail);
+        return JSON.stringify(err.detail);
+      }
+      if (err.msg && err.loc) return `${err.msg} (${err.loc.join(",")})`;
+      return JSON.stringify(err);
+    }
+    return String(err);
+  }
+
   // PUBLIC_INTERFACE
   async function handleRegister(e) {
     e.preventDefault();
@@ -235,7 +305,7 @@ function RegisterPage() {
       login(data);
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.detail || "Registration failed.");
+      setError(formatError(err) || "Registration failed.");
     }
   }
   return (

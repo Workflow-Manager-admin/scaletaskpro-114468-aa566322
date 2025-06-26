@@ -22,3 +22,8 @@ INFO:     100.64.4.167:57470 - "HEAD /docs HTTP/1.1" 200 OK
 INFO:     100.64.4.167:57462 - "HEAD /docs HTTP/1.1" 200 OK
 INFO:     100.64.4.167:57482 - "HEAD /docs HTTP/1.1" 200 OK
 INFO:     100.64.4.167:57492 - "HEAD /docs HTTP/1.1" 200 OK
+INFO:     100.64.4.167:35412 - "OPTIONS /auth/login HTTP/1.1" 200 OK
+INFO:     100.64.4.167:35420 - "POST /auth/login HTTP/1.1" 422 Unprocessable Entity
+INFO:     100.64.4.167:44794 - "OPTIONS /auth/register HTTP/1.1" 200 OK
+INFO:     100.64.4.167:44806 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     100.64.4.167:44812 - "POST /auth/login HTTP/1.1" 422 Unprocessable Entity

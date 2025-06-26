@@ -5,34 +5,17 @@ import {
   Route,
   Navigate,
   useNavigate,
+  useLocation,
+  Link,
 } from "react-router-dom";
 import "./App.css";
+import TaskDetailPage from "./pages/TaskDetailPage";
+import ProjectDetailPage from "./pages/ProjectDetailPage";
+import TeamDetailPage from "./pages/TeamDetailPage";
+import HealthPage from "./pages/HealthPage";
+import { apiRequest } from "./utils/api";
 
-// --- Backend API base URL configuration ---
-const API_BASE = "https://vscode-internal-079-beta.beta01.cloud.kavia.ai:3001";
 
-// --- Helpers for API calls ---
-async function apiRequest(path, options = {}, withAuth = true) {
-  // PUBLIC_INTERFACE
-  /** Helper function to call backend API with/without auth header; throws on non-2xx */
-  const token = localStorage.getItem("token");
-  const headers = {
-    "Content-Type": "application/json",
-    ...options.headers,
-  };
-  if (withAuth && token) {
-    headers["Authorization"] = `Bearer ${token}`;
-  }
-  const resp = await fetch(`${API_BASE}${path}`, {
-    ...options,
-    headers,
-  });
-  const data = await resp.json().catch(() => ({}));
-  if (!resp.ok) {
-    throw data || { detail: "Unknown error" };
-  }
-  return data;
-}
 
 // --- Auth context for managing user session ---
 const AuthContext = React.createContext();
@@ -112,22 +95,23 @@ function Navbar({ onLogout }) {
   );
 }
 
-function Sidebar({ items = [], current, onSelect }) {
+function Sidebar({ items = [], current }) {
   return (
     <aside className="sidebar">
       <div className="sidebar-section">
         {items.map((item) => (
-          <div
+          <Link
             key={item.id}
+            to={item.id}
             className={
               "sidebar-item" +
               (current === item.id ? " sidebar-item-active" : "")
             }
-            onClick={() => onSelect(item.id)}
             tabIndex={0}
+            style={{ textDecoration: "none" }}
           >
             {item.name}
-          </div>
+          </Link>
         ))}
       </div>
     </aside>
@@ -956,17 +940,7 @@ function TaskModal({ initial, onSave, onClose }) {
 // --- Main App Layout ---
 function AppLayout({ children }) {
   const { logout, user } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const location = window.location.pathname;
-  // fetch project list for sidebar navigation context (optional minimalist)
-  useEffect(() => {
-    if (user) {
-      apiRequest("/projects")
-        .then((r) => setProjects(r.projects || []))
-        .catch(() => setProjects([]));
-    }
-  }, [user]);
+  const location = useLocation();
   return (
     <div className="app-shell">
       <Navbar onLogout={logout} />
@@ -977,11 +951,9 @@ function AppLayout({ children }) {
             { id: "/tasks", name: "Tasks" },
             { id: "/projects", name: "Projects" },
             { id: "/teams", name: "Teams" },
+            { id: "/health", name: "Health" }
           ]}
-          current={location}
-          onSelect={(id) => {
-            window.location.pathname = id;
-          }}
+          current={location.pathname}
         />
         <main className="main">{children}</main>
       </div>
@@ -1006,8 +978,12 @@ function App() {
                     <Routes>
                       <Route path="/dashboard" element={<DashboardPage />} />
                       <Route path="/projects" element={<ProjectsPage />} />
+                      <Route path="/projects/:id" element={<ProjectDetailPage />} />
                       <Route path="/teams" element={<TeamsPage />} />
+                      <Route path="/teams/:id" element={<TeamDetailPage />} />
                       <Route path="/tasks" element={<TasksPage />} />
+                      <Route path="/tasks/:id" element={<TaskDetailPage />} />
+                      <Route path="/health" element={<HealthPage />} />
                       <Route path="/" element={<Navigate to="/dashboard" />} />
                     </Routes>
                   </AppLayout>

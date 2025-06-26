@@ -106,16 +106,18 @@ function AuthProvider({ children }) {
     try {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      setUser(data.user);
-      setToken(data.access_token);
-      setSessionExpired(false);
-    } catch {
-      setUser(data.user);
-      setToken(data.access_token || null);
-      setSessionExpired(false);
-    }
+    } catch {}
+    // Set state in synchronous batch before navigation for correct redirect/guard
+    setUser(data.user);
+    setToken(data.access_token);
+    setSessionExpired(false);
+
+    // Ensure that navigation only happens after React state updates are flushed
     if (navigate) {
-      navigate("/dashboard", { replace: true });
+      // Use setTimeout to push navigation to next event loop tick to guarantee rerender/redirect order
+      setTimeout(() => {
+        navigate("/dashboard", { replace: true });
+      }, 0);
     }
   };
   // Logout or session nuke (sessionExpired true => session expired, otherwise real logout)
@@ -607,10 +609,11 @@ function ProtectedRoute({ children }) {
   const navigate = useNavigate();
   const [checking, setChecking] = useState(true);
 
-  // On mount or any navigation, check authentication
   useEffect(() => {
-    // If not authenticated, send to login page (but retain location for redirect after login)
-    if (!isAuthenticated) {
+    // Avoid interfering with /login or /register routes by not redirecting if already there
+    const pathname = location.pathname;
+    const onAuthPage = pathname === "/login" || pathname === "/register";
+    if (!isAuthenticated && !onAuthPage) {
       // Only show session expired notice if it's a real expiry (set by AuthProvider)
       if (sessionExpired) {
         navigate("/login", { replace: true, state: { sessionExpired: true } });
@@ -623,10 +626,8 @@ function ProtectedRoute({ children }) {
     // eslint-disable-next-line
   }, [isAuthenticated, sessionExpired, location.pathname]);
 
-  // While checking auth, show nothing (or spinner)
   if (checking) return null;
 
-  // If authed, render children
   return isAuthenticated ? children : null;
 }
 

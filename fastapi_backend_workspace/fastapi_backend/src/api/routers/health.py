@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends
-from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 from ..database import get_db
 
 router = APIRouter(
@@ -37,7 +37,9 @@ def db_health_check(db: Session = Depends(get_db)):
         - {"status": "error", "detail": <error>} if not.
     """
     try:
-        db.execute("SELECT 1")
+        # Use SQLAlchemy's text() for raw SQL to avoid ArgumentError
+        db.execute(text("SELECT 1"))
         return {"status": "ok"}
-    except OperationalError as e:
+    except Exception as e:
+        # Catch all exceptions to handle unexpected DB errors and avoid 500
         return {"status": "error", "detail": str(e)}

@@ -21,23 +21,40 @@ import { apiRequest } from "./utils/api";
 const AuthContext = React.createContext();
 
 function AuthProvider({ children }) {
-  const [user, setUser] = useState(
-    () => JSON.parse(localStorage.getItem("user")) || null
-  );
+  // Safely parse user from localStorage: handle null/undefined/invalid JSON
+  function getStoredUser() {
+    try {
+      const storedUser = localStorage.getItem("user");
+      if (!storedUser) return null;
+      return JSON.parse(storedUser);
+    } catch {
+      // If parsing fails, reset to null (corrupt data)
+      localStorage.removeItem("user");
+      return null;
+    }
+  }
+  const [user, setUser] = useState(getStoredUser);
 
   // PUBLIC_INTERFACE
   const login = (data, navigate = null) => {
-    localStorage.setItem("token", data.access_token);
-    localStorage.setItem("user", JSON.stringify(data.user));
-    setUser(data.user);
+    try {
+      localStorage.setItem("token", data.access_token);
+      localStorage.setItem("user", JSON.stringify(data.user));
+      setUser(data.user);
+    } catch {
+      // Fallback: If storage fails, still set state (memory only)
+      setUser(data.user);
+    }
     // If navigation is provided (new session), redirect after login
     if (navigate) {
       navigate("/dashboard", { replace: true });
     }
   };
   const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
+    try {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+    } catch {}
     setUser(null);
   };
 
@@ -451,11 +468,22 @@ function DashboardPage() {
   );
 }
 
-// --- Protected Route Wrapper ---
+/**
+ * Protected Route Wrapper: Guards against missing user.
+ * If something critical fails, shows a fallback page that allows recovery navigation.
+ */
 function RequireAuth({ children }) {
   const { user } = useAuth();
+  // Robust handling for null/undefined user (cannot get stuck)
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return (
+      <div className="form-error" style={{ margin: "2rem" }}>
+        <div>You are not logged in or your session expired.</div>
+        <Link className="btn accent" style={{ marginTop: 16 }} to="/login">
+          Go to Login
+        </Link>
+      </div>
+    );
   }
   return children;
 }
@@ -962,35 +990,78 @@ function AppLayout({ children }) {
 }
 
 // --- App Router ---
+/**
+ * Simple error boundary that displays a user-friendly message and a "Back to Dashboard" button.
+ */
+class AppErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, errorMsg: "" };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, errorMsg: error?.message || String(error) };
+  }
+
+  componentDidCatch(error, info) {
+    // Optionally: log to backend here
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="form-error" style={{ margin: "3rem", maxWidth: 500 }}>
+          <div>Oops! Something went wrong in the app.</div>
+          <div style={{ fontSize: 12, color: "#999", marginTop: 4 }}>
+            {this.state.errorMsg}
+          </div>
+          <Link className="btn accent" style={{ marginTop: 28 }} to="/dashboard">
+            Back to Dashboard
+          </Link>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
         <Router>
-          <Routes>
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/register" element={<RegisterPage />} />
-            <Route
-              path="/*"
-              element={
-                <RequireAuth>
-                  <AppLayout>
-                    <Routes>
-                      <Route path="/dashboard" element={<DashboardPage />} />
-                      <Route path="/projects" element={<ProjectsPage />} />
-                      <Route path="/projects/:id" element={<ProjectDetailPage />} />
-                      <Route path="/teams" element={<TeamsPage />} />
-                      <Route path="/teams/:id" element={<TeamDetailPage />} />
-                      <Route path="/tasks" element={<TasksPage />} />
-                      <Route path="/tasks/:id" element={<TaskDetailPage />} />
-                      <Route path="/health" element={<HealthPage />} />
-                      <Route path="/" element={<Navigate to="/dashboard" />} />
-                    </Routes>
-                  </AppLayout>
-                </RequireAuth>
-              }
-            />
-          </Routes>
+          <AppErrorBoundary>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
+              <Route
+                path="/*"
+                element={
+                  <RequireAuth>
+                    <AppLayout>
+                      <Routes>
+                        <Route path="/dashboard" element={<DashboardPage />} />
+                        <Route path="/projects" element={<ProjectsPage />} />
+                        <Route path="/projects/:id" element={<ProjectDetailPage />} />
+                        <Route path="/teams" element={<TeamsPage />} />
+                        <Route path="/teams/:id" element={<TeamDetailPage />} />
+                        <Route path="/tasks" element={<TasksPage />} />
+                        <Route path="/tasks/:id" element={<TaskDetailPage />} />
+                        <Route path="/health" element={<HealthPage />} />
+                        <Route path="/" element={<Navigate to="/dashboard" />} />
+                        <Route path="*" element={
+                          <div className="form-error" style={{ margin: "2rem" }}>
+                            <div>Page not found.</div>
+                            <Link className="btn accent" style={{ marginTop: 15 }} to="/dashboard">Dashboard</Link>
+                          </div>
+                        } />
+                      </Routes>
+                    </AppLayout>
+                  </RequireAuth>
+                }
+              />
+            </Routes>
+          </AppErrorBoundary>
         </Router>
       </AuthProvider>
     </ThemeProvider>

@@ -34,3 +34,5 @@ INFO:     100.64.4.167:55470 - "GET /docs HTTP/1.1" 200 OK
 INFO:     100.64.4.167:55476 - "GET /openapi.json HTTP/1.1" 200 OK
 INFO:     100.64.4.167:60510 - "GET /auth/register HTTP/1.1" 405 Method Not Allowed
 INFO:     100.64.4.167:60516 - "GET /favicon.ico HTTP/1.1" 404 Not Found
+INFO:     100.64.4.167:46294 - "GET /auth/login HTTP/1.1" 405 Method Not Allowed
+INFO:     100.64.4.167:49200 - "POST /auth/login HTTP/1.1" 200 OK

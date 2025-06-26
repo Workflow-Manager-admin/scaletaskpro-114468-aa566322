@@ -94,7 +94,7 @@ function Navbar({ onLogout }) {
       <div className="spacer" />
       {user ? (
         <>
-          <span className="user">{user.username}</span>
+          <span className="user">{user.email || user.username}</span>
           <button className="navbar-btn secondary" onClick={onLogout}>
             Logout
           </button>
@@ -131,7 +131,7 @@ function Sidebar({ items = [], current, onSelect }) {
 
 // --- Login and Registration Pages ---
 function LoginPage() {
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const { login } = useAuth();
@@ -177,15 +177,13 @@ function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      // API: POST /auth/login
-      // FastAPI typical expectation: { "username": ..., "password": ... } (as already coded)
-      // If backend expects application/x-www-form-urlencoded, would need to use URLSearchParams.
-      // Here, we keep JSON, update only if 422 persists after this.
+      // API: POST /auth/login expects { "email": ..., "password": ... }
       const data = await apiRequest(
         "/auth/login",
         {
           method: "POST",
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify({ email, password }),
+          headers: { "Content-Type": "application/json" },
         },
         false
       );
@@ -201,14 +199,14 @@ function LoginPage() {
       <h1>Login</h1>
       <form onSubmit={handleLogin}>
         <label>
-          Username
+          Email
           <input
             required
             autoFocus
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            type="text"
-            autoComplete="username"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            type="email"
+            autoComplete="email"
           />
         </label>
         <label>
@@ -284,21 +282,23 @@ function RegisterPage() {
     e.preventDefault();
     setError("");
     try {
-      // API: POST /auth/register
+      // API: POST /auth/register expects { username, email, password }
       await apiRequest(
         "/auth/register",
         {
           method: "POST",
           body: JSON.stringify({ username, email, password }),
+          headers: { "Content-Type": "application/json" }
         },
         false
       );
-      // On success, auto-login:
+      // On success, auto-login using email/password:
       const data = await apiRequest(
         "/auth/login",
         {
           method: "POST",
-          body: JSON.stringify({ username, password }),
+          body: JSON.stringify({ email, password }),
+          headers: { "Content-Type": "application/json" }
         },
         false
       );

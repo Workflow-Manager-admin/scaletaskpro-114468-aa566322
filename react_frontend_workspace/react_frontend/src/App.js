@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   BrowserRouter as Router,
   Routes,
@@ -15,56 +15,168 @@ import TeamDetailPage from "./pages/TeamDetailPage";
 import HealthPage from "./pages/HealthPage";
 import { apiRequest } from "./utils/api";
 
-
-
-// --- Auth context for managing user session ---
+/**
+ * --- Auth context for managing user session and protected routes ---
+ */
 const AuthContext = React.createContext();
 
+/**
+ * Helper to parse JWT payload (for exp field, not full validation).
+ */
+function parseJwt(token) {
+  if (!token) return null;
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const decoded = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return decoded;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PUBLIC_INTERFACE
+ * AuthProvider: Handles login/logout, session restoration (localStorage), expiry detection, 
+ * and propagates changes/revalidation for all children.
+ */
 function AuthProvider({ children }) {
-  // Safely parse user from localStorage: handle null/undefined/invalid JSON
-  function getStoredUser() {
+  // Initial check
+  function getInitialAuth() {
     try {
       const storedUser = localStorage.getItem("user");
-      if (!storedUser) return null;
-      return JSON.parse(storedUser);
+      const storedToken = localStorage.getItem("token");
+      if (!storedToken || !storedUser) return { user: null, token: null };
+      // Check expiry (JWT standard "exp")
+      const decoded = parseJwt(storedToken);
+      if (decoded?.exp && Date.now() / 1000 > decoded.exp) {
+        // token expired, nuke and return null
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+        return { user: null, token: null };
+      }
+      return { user: JSON.parse(storedUser), token: storedToken };
     } catch {
-      // If parsing fails, reset to null (corrupt data)
       localStorage.removeItem("user");
-      return null;
+      localStorage.removeItem("token");
+      return { user: null, token: null };
     }
   }
-  const [user, setUser] = useState(getStoredUser);
+
+  // Store both user and token
+  const [user, setUser] = useState(() => getInitialAuth().user);
+  const [token, setToken] = useState(() => getInitialAuth().token);
+  // For session expiry: show global session expired state/modal/route jump
+  const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Listen to localStorage changes (manual multi-tab logout/session sync)
+  useEffect(() => {
+    function handleStorage(e) {
+      if (e.key === "token" || e.key === "user") {
+        // Side effect: force re-check
+        const updated = getInitialAuth();
+        setUser(updated.user);
+        setToken(updated.token);
+        if (!updated.user) setSessionExpired(false);
+      }
+    }
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
+
+  // Session refresh/expiry polling (optional: can use more sophisticated idle detection or backend)
+  useEffect(() => {
+    let interval = null;
+    if (token) {
+      interval = setInterval(() => {
+        const decoded = parseJwt(token);
+        if (decoded?.exp && Date.now() / 1000 > decoded.exp) {
+          // Session expired, nuke everything
+          logout(true);
+        }
+      }, 10000); // check every 10s
+    }
+    return () => interval && clearInterval(interval);
+  }, [token]); // depend on token changes
 
   // PUBLIC_INTERFACE
+  // Login: save user+token, go to dashboard, clear expired state
   const login = (data, navigate = null) => {
     try {
       localStorage.setItem("token", data.access_token);
       localStorage.setItem("user", JSON.stringify(data.user));
       setUser(data.user);
+      setToken(data.access_token);
+      setSessionExpired(false);
     } catch {
-      // Fallback: If storage fails, still set state (memory only)
       setUser(data.user);
+      setToken(data.access_token || null);
+      setSessionExpired(false);
     }
-    // If navigation is provided (new session), redirect after login
     if (navigate) {
       navigate("/dashboard", { replace: true });
     }
   };
-  const logout = () => {
-    try {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-    } catch {}
-    setUser(null);
-  };
+  // Logout or session nuke (sessionExpired true => session expired, otherwise real logout)
+  const logout = useCallback(
+    (expired = false) => {
+      try {
+        localStorage.removeItem("token");
+        localStorage.removeItem("user");
+      } catch {}
+      setUser(null);
+      setToken(null);
+      setSessionExpired(expired === true);
+    },
+    []
+  );
+
+  // Helper: on access to protected route with user/token missing, clear session and flag as expired
+  const invalidateSession = useCallback(() => {
+    logout(true);
+  }, [logout]);
+
+  // To allow fallback/session restore: on mount, restore if possible
+  useEffect(() => {
+    // On page reload or mount, restore localStorage data (if not invalid)
+    const initial = getInitialAuth();
+    if (user == null && initial.user) {
+      setUser(initial.user);
+      setToken(initial.token);
+    }
+    // If session expired set sessionExpired true
+    if (!initial.token && !initial.user && user) {
+      setSessionExpired(true);
+      setUser(null);
+      setToken(null);
+    }
+  }, []); // only run at mount
+
+  // Expose isAuthenticated (user+token)
+  const isAuthenticated = !!user && !!token;
 
   return (
-    <AuthContext.Provider value={{ user, login, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        isAuthenticated,
+        login,
+        logout,
+        invalidateSession,
+        sessionExpired,
+        setSessionExpired,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 }
 
+/**
+ * PUBLIC_INTERFACE
+ * useAuth(): returns { user, token, isAuthenticated, login, logout, invalidateSession, sessionExpired }
+ */
 function useAuth() {
   return React.useContext(AuthContext);
 }
@@ -140,15 +252,24 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
-  const { login } = useAuth();
+  const { login, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  // Utility to format validation/server errors as a readable string/JSX
+  // Utility for session expired message
+  useEffect(() => {
+    if (location.state?.sessionExpired) {
+      setError("Session expired. Please log in again.");
+      logout(false); // clear any partial state but don't mark as expired
+    }
+    // On entering login, clear any stale partial data
+    // eslint-disable-next-line
+  }, []);
+
   function formatError(err) {
     if (!err) return "";
     if (typeof err === "string") return err;
     if (Array.isArray(err)) {
-      // FastAPI validation error: array of objects with loc/msg/type
       return (
         <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
           {err.map((item, i) => (
@@ -168,10 +289,8 @@ function LoginPage() {
       if (err.detail) {
         if (typeof err.detail === "string") return err.detail;
         if (Array.isArray(err.detail)) return formatError(err.detail);
-        // Might be an object
         return JSON.stringify(err.detail);
       }
-      // FastAPI validation error at root level
       if (err.msg && err.loc) return `${err.msg} (${err.loc.join(",")})`;
       return JSON.stringify(err);
     }
@@ -183,7 +302,6 @@ function LoginPage() {
     e.preventDefault();
     setError("");
     try {
-      // API: POST /auth/login expects { "email": ..., "password": ... }
       const data = await apiRequest(
         "/auth/login",
         {
@@ -193,8 +311,8 @@ function LoginPage() {
         },
         false
       );
-      // Use login with navigation so redirect happens after user state is set
-      login(data, navigate); // stores token and user, does redirect
+      // login(data, navigate) will set session and redirect
+      login(data, navigate);
     } catch (err) {
       setError(formatError(err) || "Login failed.");
     }
@@ -232,7 +350,10 @@ function LoginPage() {
           New here?{" "}
           <span
             className="auth-form-link"
-            onClick={() => navigate("/register")}
+            onClick={() => {
+              setError("");
+              navigate("/register");
+            }}
           >
             Create account
           </span>
@@ -251,7 +372,6 @@ function RegisterPage() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Utility to format errors (reuse from LoginPage)
   function formatError(err) {
     if (!err) return "";
     if (typeof err === "string") return err;
@@ -288,7 +408,6 @@ function RegisterPage() {
     e.preventDefault();
     setError("");
     try {
-      // API: POST /auth/register expects { username, email, password }
       await apiRequest(
         "/auth/register",
         {
@@ -308,8 +427,7 @@ function RegisterPage() {
         },
         false
       );
-      login(data);
-      navigate("/dashboard");
+      login(data, navigate);
     } catch (err) {
       setError(formatError(err) || "Registration failed.");
     }
@@ -356,7 +474,10 @@ function RegisterPage() {
           Have an account?{" "}
           <span
             className="auth-form-link"
-            onClick={() => navigate("/login")}
+            onClick={() => {
+              setError("");
+              navigate("/login");
+            }}
           >
             Login
           </span>
@@ -366,6 +487,8 @@ function RegisterPage() {
     </section>
   );
 }
+
+/* Duplicate RegisterPage removed; see above for single up-to-date RegisterPage function. */
 
 // --- Dashboard Page (displays projects, tasks, teams summary) ---
 function DashboardPage() {
@@ -469,23 +592,37 @@ function DashboardPage() {
 }
 
 /**
- * Protected Route Wrapper: Guards against missing user.
- * If something critical fails, shows a fallback page that allows recovery navigation.
+ * PUBLIC_INTERFACE
+ * ProtectedRoute: Wraps a protected route, enforces authentication & redirect.
+ * On session expiration, will log out everywhere and redirect to login with a message.
  */
-function RequireAuth({ children }) {
-  const { user } = useAuth();
-  // Robust handling for null/undefined user (cannot get stuck)
-  if (!user) {
-    return (
-      <div className="form-error" style={{ margin: "2rem" }}>
-        <div>You are not logged in or your session expired.</div>
-        <Link className="btn accent" style={{ marginTop: 16 }} to="/login">
-          Go to Login
-        </Link>
-      </div>
-    );
-  }
-  return children;
+function ProtectedRoute({ children }) {
+  const { user, token, isAuthenticated, sessionExpired, setSessionExpired, logout } = useAuth();
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [checking, setChecking] = useState(true);
+
+  // On mount or any navigation, check authentication
+  useEffect(() => {
+    // If not authenticated, send to login page (but retain location for redirect after login)
+    if (!isAuthenticated) {
+      // Only show session expired notice if it's a real expiry (set by AuthProvider)
+      if (sessionExpired) {
+        navigate("/login", { replace: true, state: { sessionExpired: true } });
+        setSessionExpired(false);
+      } else {
+        navigate("/login", { replace: true, state: { from: location } });
+      }
+    }
+    setChecking(false);
+    // eslint-disable-next-line
+  }, [isAuthenticated, sessionExpired, location.pathname]);
+
+  // While checking auth, show nothing (or spinner)
+  if (checking) return null;
+
+  // If authed, render children
+  return isAuthenticated ? children : null;
 }
 
 // --- Projects CRUD page/component ---
@@ -968,10 +1105,16 @@ function TaskModal({ initial, onSave, onClose }) {
 // --- Main App Layout ---
 function AppLayout({ children }) {
   const { logout, user } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
+  // When user logs out, redirect to /login
+  const handleLogout = () => {
+    logout(false);
+    navigate("/login", { replace: true });
+  };
   return (
     <div className="app-shell">
-      <Navbar onLogout={logout} />
+      <Navbar onLogout={handleLogout} />
       <div className="app-content">
         <Sidebar
           items={[
@@ -1037,7 +1180,7 @@ function App() {
               <Route
                 path="/*"
                 element={
-                  <RequireAuth>
+                  <ProtectedRoute>
                     <AppLayout>
                       <Routes>
                         <Route path="/dashboard" element={<DashboardPage />} />
@@ -1057,7 +1200,7 @@ function App() {
                         } />
                       </Routes>
                     </AppLayout>
-                  </RequireAuth>
+                  </ProtectedRoute>
                 }
               />
             </Routes>

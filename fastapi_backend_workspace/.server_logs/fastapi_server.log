@@ -43,3 +43,7 @@ INFO:     100.64.4.167:44616 - "OPTIONS /auth/login HTTP/1.1" 200 OK
 INFO:     100.64.4.167:44626 - "OPTIONS /auth/login HTTP/1.1" 200 OK
 INFO:     100.64.4.167:44636 - "POST /auth/login HTTP/1.1" 200 OK
 INFO:     100.64.4.167:44644 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     100.64.4.167:38052 - "POST /auth/login HTTP/1.1" 200 OK
+INFO:     100.64.4.167:33548 - "OPTIONS /auth/register HTTP/1.1" 200 OK
+INFO:     100.64.4.167:33564 - "POST /auth/register HTTP/1.1" 200 OK
+INFO:     100.64.4.167:33566 - "POST /auth/login HTTP/1.1" 200 OK
